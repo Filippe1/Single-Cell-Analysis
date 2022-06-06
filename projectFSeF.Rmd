@@ -1,0 +1,140 @@
+---
+title: "Graded project"
+author: "Filippe Seiz de Filippi"
+output: html_document
+---
+
+## Assignment description
+
+<em> 
+You will analyze data from a clinical trial.  You should write any code you wish to be part of your answer in code blocks, and any text you wish to be part of your answer outside the code blocks, just as in the labs. Please make sure the markdown file compiles correctly when you knit it; having a working and legible document is part of the assignment.
+
+
+**Note: You may not discuss this project with anyone except your instructor until the deadline has passed.** 
+
+**Note:** You may read the attached paper by Sauerbrei and Royston if you wish, but you do not have to in order to complete this assignment.
+
+**Note:** Because this is a longer and graded assignment, answers which are a bit more detailed than those to lab questions are expected, but a few sentences on each question should be sufficient.
+
+
+
+Sauerbrei and Royston (1999) offer the following description of the data:
+
+ > From July 1984 to December 1989, the German Breast Cancer Study Group recruited 720 patients with primary node positive breast cancer into the Comprehensive Cohort Study (Schmoor et al., 1996). Randomized and non-randomized patients were eligible, and about two-thirds were entered into the randomized part. The effectiveness of three versus six cycles of chemotherapy and of additional hormonal treatment with tamoxifen were investigated in a 2 x 2 design. After a median follow-up time of nearly 5 years, 312 patients had had at least one recurrence of the disease or died. The recurrence-free survival time of the 686 patients (with 299 events) who had complete data for the standard factors age, tumour size, number of positive lymph nodes, progesterone and oestrogen receptor status, menopausal status and tumour grade is analysed...
+
+You can read the data as follows:
+
+```{r, message = F}
+# install.packages("TH.data")
+library(TH.data)
+# ?GBSG2
+```
+
+Uncomment the first line to install the package and uncomment the last line to get variable descriptions in R.
+
+Good luck!
+
+</em>
+
+
+## Question 1
+
+*Consider Table 1 in Sauerbrei and Royston (1999). Without categorizing any of the numeric variables, fit a multiple linear regression model where time is the response and all of the predictors in the table are included. In that model, also include the factor horTh as predictor. Comment on the output.*
+```{r}
+#summary(GBSG2)
+data(GBSG2)
+#head(GBSG2)
+timevspreds <- lm(time ~ horTh + menostat + age + tsize + tgrade + pnodes + progrec + estrec + cens, data = GBSG2)
+
+summary(timevspreds)
+```
+we conclude at the 5 % significance level that the recurrence free survival time seems to be affected by number of positive nodes, whether or not the patient recieved hormonal therapy, tumor grade and whether or not there was censoring. Of these, the number of positive nodes has a negative effect on the recurrence free survival time, while hormone therapy has a positive effect on recurrence free survival time.   
+
+ 
+## Question 2
+
+*Fit the same model as in Question 1 but this time including only horTh and the predictors in "Model 1" in the table (tumor grade, number of positive lymph nodes, and progresterone receptor). Examine which of this and the model in Question 1 is preferable. What do you conclude?*
+```{r}
+easyfit <- lm(time ~ horTh + tgrade + pnodes + progrec, data = GBSG2)
+summary(easyfit)
+anova(easyfit, timevspreds)
+
+```
+
+we reject the null hypothesis that the simpler model is better, so the model in question one is better at the 5% significance level.
+
+## Question 3
+
+*For the model preferred in Question 2, use graphics to investigate whether the assumptions made on the error term in linear regression seem reasonable. Hint: to assess whether the variance is the same for all values of the predictors, you can plot the residuals against the predicted values $\hat{\mu}(x_i) = \sum_{j = 1}^p \hat{\beta}_j x_{ij}$ and see whether the spread of the points in that plot is roughly the same for all values of $\hat{\mu}(x_i)$.*
+```{r}
+
+
+plot(easyfit)
+
+#summary(easyfit)
+
+vvvvv <- resid(easyfit)
+mean(vvvvv)
+hist(vvvvv)
+```
+the first assumption in linear regression that the error term is zero seems to be true since the mean of the residuals is very close to zero.
+
+the assumption that the variance of the error term is constant is also reasonable, since the residuals appear to be normally distributed in the histogram and therefore appears to have a constant variance. if we also look at the different plots the residuals seem to be roughly distributed on each side. 
+
+
+
+## Question 4
+
+*Fit a model for the probability of receiving hormonal therapy as a function of all the other predictors in Question 1. What do you conclude?*
+```{r}
+fit_horTh <- glm(horTh ~ time + menostat + age + tsize + tgrade + pnodes + progrec + estrec + cens, data = GBSG2, family = binomial)
+
+summary(fit_horTh)
+```
+According to the model, the probability of receiving hormonal therapy increases with postmenopausal status, number of estrogen and progesterone receptor, number of positive nodes, recurrence free survival time and age. At the 5 % significance level, only the recurrence free survival time and postmenopausal status effects the probability of recieving hormone therapy.  
+
+## Question 5
+
+*Explain why a randomized controlled trial (i.e. randomly assigning which patients get treatment) ensures there are no backdoor paths from treatment to response in a DAG, and hence no omitted variable bias.*
+
+If the trial is not randomized for treatment, then there may be bias in who gets the treatment, so the group that gets the treatment may for instance not show any response, which may be due to for instance the group being a specific age group, which would make it look like the treatment does not work at all since the people not in that group would be recieving the placebo and it is possible that the treatment would work on them. In other words, a randomized controlled trial ensures that there is no bias in making the groups, to avoid the aforementioned problem.  
+
+
+## Question 6
+
+*Explain why estimating the mean using censored data is difficult in general. Hint: think about the setting without predictors and what influence censoring from above has on the sample mean.*
+
+Estimating the mean survival time is difficult because in censored data we do not know when the event occurred for some individuals/data, so we do not know how the complete survival curve would look like. It is therefore difficult to determine what the actual survival curve would look like, and not including these unknown data points may introduce bias in the estimated mean survival. For instance, if for the unknown data points the events occurred very late in time, then the true mean survival time would be large and if the events of the unknown data points occurred much earlier then the mean survival time would be lower.   
+
+## Question 7
+
+*Plot an estimate of the survival probability against time, taking the censoring into account in that estimate. Then, estimate and plot a log-survival function, separately for patients whose tumorgrade is at least two or smaller than two. What do you observe? Comment on whether proportional hazards is a reasonable assumption.*
+```{r}
+
+nnnn <- Surv(GBSG2$time, GBSG2$cens)
+
+
+rrrrr <- survfit(nnnn ~ 1)
+plot(rrrrr, xlab = 'Days', ylab = 'Recurrence Free Survival Probability')
+
+eeee <- survfit(nnnn ~ (GBSG2$tgrade == 'I')*1)
+plot(eeee, log = TRUE, lty = c(1, 2), xlab = 'Days', ylab = 'Recurrence Free Survival Probability')
+
+legend("bottomleft", legend = c('high grade tumor', 'low grade tumor'), lty = c(1, 2))
+
+```
+In the first plot, the survival decreases with time and between 2000 to 2500 days there seems to be fewer events occurring. In the plot with high and low grade tumors, the recurrence free survival seems to be better for those that have low grade tumor. Proportional hazards seems to be a fairly reasonable model, since both curves (high grade tumor and low grade tumor survival curves) seem to be linear and proportional. 
+
+## Question 8
+
+*Fit a Cox proportional hazards model using the same predictors as in Question 2 (horTh, tumor grade, number of positive lymph nodes, and progresterone receptor), including also all possible two-way (i.e., between two variables) interactions between the predictors. What do you conclude? Interpret in context any statistically significant interactions.*
+```{r}
+coxph(Surv(time, cens) ~ horTh + tgrade + horTh:tgrade + horTh:pnodes + horTh:progrec + pnodes:tgrade + pnodes:progrec + progrec:tgrade + pnodes + progrec, data = GBSG2)
+```
+we reject the null hypothesis that all coefficients are zero. The number of positive nodes increases the probability of cancer recurrence, while tumor grade seems to have an effect on cancer recurrence. Hormone therapy seems to decrease probability of recurrence. At the 10 % significance level, recieving hormone therapy and having high number of progesterone receptor decreases probability of cancer recurrence. Also, at the 10 % significance level the tumor grade effects the number of progesterone receptors effect on the probability of cancer recurrence. For the other interactions the null hypothesis is not rejected at the 10 % level.  
+
+
+
+
+
+
